@@ -1,4 +1,11 @@
-// Add this new endpoint to your server.js file
+const express = require("express");
+const axios = require("axios");
+const dotenv = require("dotenv");
+
+dotenv.config();
+const app = express();
+app.use(express.json());
+
 app.post("/test-flight-api", async (req, res) => {
     try {
         const { departure_location, destination, departure_date, flight_type, number_of_passengers } = req.body;
@@ -35,4 +42,9 @@ app.post("/test-flight-api", async (req, res) => {
             res.status(500).json({ error: "Request Failed", details: error.message });
         }
     }
+});
+
+const PORT = 8001;
+app.listen(PORT, () => {
+    console.log(`Alice's Flight Agent is running on port ${PORT}`);
 });
