@@ -26,12 +26,11 @@ app.post("/get-flight-prices", async (req, res) => {
             }
         });
 
-        // Extract flights from the API response
         const flights = response.data.data.flightOffers || [];
+        console.log(flights)
         
-        // Map the flights to our desired structure
         const structuredFlights = flights.map(flight => {
-            // Initialize a flight data object with default values
+            // 
             const flightData = {
                 airline: "Unknown",
                 price: "N/A",
@@ -45,36 +44,29 @@ app.post("/get-flight-prices", async (req, res) => {
             
             // Extract flight information
             if (flight.segments && flight.segments.length > 0) {
-                // Extract airline information from first segment
                 const firstSegment = flight.segments[0];
+
                 if (firstSegment.marketingCarrier) {
                     flightData.airline = firstSegment.marketingCarrier.name || "Unknown";
+                    flightData.flightNumber = firstSegment.marketingCarrier?.code + firstSegment.marketingCarrier?.number || "N/A";
                 }
                 
-                // Extract flight number
-                flightData.flightNumber = firstSegment.marketingCarrier?.code + firstSegment.marketingCarrier?.number || "N/A";
-                
-                // Extract departure time
                 if (firstSegment.departure) {
                     flightData.departureTime = firstSegment.departure.localDateTime || "N/A";
                 }
                 
-                // Extract arrival time from last segment
                 const lastSegment = flight.segments[flight.segments.length - 1];
                 if (lastSegment.arrival) {
                     flightData.arrivalTime = lastSegment.arrival.localDateTime || "N/A";
                 }
                 
-                // Calculate stops
                 flightData.stops = flight.segments.length - 1;
                 
-                // Extract duration
                 if (flight.totalDuration) {
                     flightData.duration = flight.totalDuration;
                 }
             }
             
-            // Extract price information
             if (flight.totalPrice) {
                 flightData.price = `${flight.totalPrice.units}.${flight.totalPrice.nanos / 10000000}`;
                 flightData.currency = flight.totalPrice.currencyCode || "USD";
@@ -84,7 +76,9 @@ app.post("/get-flight-prices", async (req, res) => {
             }
             
             return flightData;
+            
         });
+        console.log(flightData)
 
         res.status(200).json({
             agent: "Alice", 
