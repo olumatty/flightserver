@@ -6,7 +6,45 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+let accessToken = null;
+let tokenExpiration = 0;
 
+
+const getAccessToken = async () => {
+    
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (accessToken && tokenExpiration > currentTime + 60) {
+        console.log("Using cached token");
+        return accessToken;
+    }
+    const clientId = process.env.AMADEUS_API_KEY;
+    const clientSecret = process.env.AMADEUS_SECRET_KEY;
+
+    console.log("--- Attempting to get new token ---");
+    console.log("Using Client ID:", clientId);
+    console.log("Using Client Secret:", clientSecret ? `Yes, length ${clientSecret.length}` : "No/Undefined");
+    
+    const params = new URLSearchParams();
+    params.append("grant_type", "client_credentials");
+    params.append("client_id", clientId); 
+    params.append("client_secret", clientSecret); 
+
+    try {
+        const response = await axios.post("https://test.api.amadeus.com/v1/security/oauth2/token", params);
+        accessToken = response.data.access_token;
+        tokenExpiration = Math.floor(Date.now() / 1000) + response.data.expires_in - 60;
+        console.log("--- Successfully obtained new token ---"); 
+        return accessToken;
+    } catch (error) {
+        console.error("--- Error getting access token ---"); 
+        console.error("Error getting access token:", error.message);
+        if (error.response) {
+            console.error("API Error Status:", error.response.status); 
+            console.error("API Error Details:", error.response.data); 
+        }
+        throw error;
+    }
+}
 app.post("/get-flight-prices", async (req, res) => {
     try {
         const { departure_location, destination, departure_date, flight_type, number_of_passengers } = req.body;
@@ -19,104 +57,43 @@ app.post("/get-flight-prices", async (req, res) => {
             number_of_passengers
         });
 
-        const response = await axios.get("https://booking-com15.p.rapidapi.com/api/v1/flights/searchFlights", {
+        const accessToken = await getAccessToken();
+
+        const response = await axios.get("https://test.api.amadeus.com/v2/shopping/flight-offers", {
             params: {
-                fromId: `${departure_location}.AIRPORT`,
-                toId: `${destination}.AIRPORT`,
-                departDate: departure_date,
+                originLocationCode: departure_location,
+                destinationLocationCode:destination,
+                departureDate: departure_date,
                 adults: number_of_passengers,
                 children: "0",
-                travelClass: flight_type
+                travelClass: flight_type.toUpperCase()
             },
             headers: {
-                "x-rapidapi-host": "booking-com15.p.rapidapi.com",
-                "x-rapidapi-key": process.env.BOOKING_COM_API_KEY,
+                 Authorization: `Bearer ${accessToken}`,
             }
         });
 
-        const flightOffers = response.data.data?.flightOffers || [];
-        
-        
-        if (flightOffers.length > 0) {
-            console.log("First flight offer keys:", Object.keys(flightOffers[0]));
-        }
-
-        function formatDateTime(dateTimeString) {
-            if (!dateTimeString) {
-                return "N/A";
-            }
-        
-            const date = new Date(dateTimeString);
-            if (isNaN(date)) {
-                return "N/A"; // Invalid date
-            }
-        
-            const options = {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-            };
-        
-            return date.toLocaleString('en-US', options);
-        }
-        
-        function convertDurationToHours(durationInSeconds) {
-            if (typeof durationInSeconds !== 'number') {
-                return "N/A";
-            }
-        
-            const hours = Math.floor(durationInSeconds / 3600);
-            const minutes = Math.floor((durationInSeconds % 3600) / 60);
-        
-            return `${hours}h ${minutes}m`;
-        }
+        const flightOffers = response.data.data
         
         const structuredFlights = flightOffers.map((flight) => {
             console.log("Processing flight:", flight.id || "unknown id");
-        
-            const flightData = {
-                airline: "Unknown",
-                price: "N/A",
-                currency: "USD",
-                departureTime: "N/A",
-                arrivalTime: "N/A",
-                duration: "N/A",
-                stops: 0,
-                flightNumber: "N/A"
-            };
-        
-            
-                if (flight.segments && flight.segments.length > 0) {
-                    const firstSegment = flight.segments[0];
+            const segment = flight.itineraries[0]?.segments[0]
 
-                    if (firstSegment.legs && firstSegment.legs[0] && firstSegment.legs[0].carriersData && firstSegment.legs[0].carriersData.length > 0 && firstSegment.legs[0].carriersData[0].name) {
-                        flightData.airline = firstSegment.legs[0].carriersData[0].name;
-                    } 
-
-                flightData.flightNumber = firstSegment.legs?.[0]?.flightInfo?.flightNumber || "N/A";
-                flightData.departureTime = formatDateTime(firstSegment.departureTime);
-                flightData.arrivalTime = formatDateTime(firstSegment.arrivalTime);
-                flightData.stops = 0;
-        
-                if (firstSegment.totalTime) {
-                    flightData.duration = convertDurationToHours(firstSegment.totalTime);
-                } else if (flight.totalDuration) {
-                    flightData.duration = convertDurationToHours(flight.totalDuration);
-                }
+            return{
+                airline: segment?.carrierCode || "Unknown",
+                price: flight.price?.total || "N/A",
+                currency: flight.price?.currency || "USD",
+                departureTime: segment?.departure?.at?.split("T")[1] || "N/A",
+                departureDate: segment?.departure?.at?.split("T")[0] || "N/A",
+                duration: flight.itineraries[0]?.duration || "N/A",
+                tops: flight.itineraries[0]?.segments?.length - 1 || 0,
+                flightNumber: segment?.flightNumber || "N/A",
             }
-            if (flight.totalPrice) {
-                flightData.price = `${flight.totalPrice.units}.${Math.round(flight.totalPrice.nanos / 10000000)}`;
-                flightData.currency = flight.totalPrice.currencyCode || "USD";
-            } else if (flight.priceBreakdown && flight.priceBreakdown.total) {
-                flightData.price = `${flight.priceBreakdown.total.units}.${Math.round(flight.priceBreakdown.total.nanos / 10000000)}`;
-                flightData.currency = flight.priceBreakdown.total.currencyCode || "USD";
-            }
-        
-            return flightData;
         });
+
+        const topThreeFlights = structuredFlights
+            .sort((a, b) => a.price - b.price)
+            .slice(0, 4);
 
         res.status(200).json({
             agent: "Alice",
@@ -127,7 +104,7 @@ app.post("/get-flight-prices", async (req, res) => {
                 flight_type,
                 number_of_passengers,
             },
-            flights: structuredFlights
+            top_flights: topThreeFlights
         });
 
     } catch (error) {
@@ -140,6 +117,7 @@ app.post("/get-flight-prices", async (req, res) => {
             details: error.message,
             apiError: error.response?.data || "No additional details"
         });
+        
     }
 });
 const PORT = 8001;
