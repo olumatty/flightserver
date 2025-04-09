@@ -11,7 +11,7 @@ let tokenExpiration = 0;
 
 
 const getAccessToken = async () => {
-    
+
     const currentTime = Math.floor(Date.now() / 1000);
     if (accessToken && tokenExpiration > currentTime + 60) {
         console.log("Using cached token");
@@ -47,26 +47,27 @@ const getAccessToken = async () => {
 }
 app.post("/get-flight-prices", async (req, res) => {
     try {
-        const { departure_location, destination, departure_date, flight_type, number_of_passengers } = req.body;
+        const {originLocationCode,destinationLocationCode,departureDate,adults,travelClass } = req.body;
 
         console.log("Searching for flights with parameters:", {
-            departure_location,
-            destination,
-            departure_date,
-            flight_type,
-            number_of_passengers
+            originLocationCode,
+            destinationLocationCode,
+            departureDate,
+            travelClass,
+            adults
         });
 
         const accessToken = await getAccessToken();
 
         const response = await axios.get("https://test.api.amadeus.com/v2/shopping/flight-offers", {
             params: {
-                originLocationCode: departure_location,
-                destinationLocationCode:destination,
-                departureDate: departure_date,
-                adults: number_of_passengers,
+                originLocationCode:originLocationCode,
+                destinationLocationCode:destinationLocationCode,
+                departureDate:departureDate,
+                adults: adults,
                 children: "0",
-                travelClass: flight_type.toUpperCase()
+                travelClass: travelClass
+                
             },
             headers: {
                  Authorization: `Bearer ${accessToken}`,
@@ -98,11 +99,11 @@ app.post("/get-flight-prices", async (req, res) => {
         res.status(200).json({
             agent: "Alice",
             extractedInfo: {
-                departure_location,
-                destination,
-                departure_date,
-                flight_type,
-                number_of_passengers,
+                originLocationCode,
+                destinationLocationCode,
+                departureDate,
+                travelClass,
+                adults,
             },
             top_flights: topThreeFlights
         });
