@@ -87,8 +87,7 @@ app.post("/get-flight-prices", async (req, res) => {
                 departureTime: segment?.departure?.at?.split("T")[1] || "N/A",
                 departureDate: segment?.departure?.at?.split("T")[0] || "N/A",
                 duration: flight.itineraries[0]?.duration || "N/A",
-                tops: flight.itineraries[0]?.segments?.length - 1 || 0,
-                flightNumber: segment?.flightNumber || "N/A",
+                stops: flight.itineraries[0]?.segments?.length - 1 || 0,
             }
         });
 
