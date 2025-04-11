@@ -45,7 +45,7 @@ const getAccessToken = async () => {
         throw error;
     }
 }
-app.post("/get-flight-prices", async (req, res) => {
+app.post("/v1/get-flight-prices", async (req, res) => {
     try {
         const {originLocationCode,destinationLocationCode,departureDate,adults,travelClass } = req.body;
 
