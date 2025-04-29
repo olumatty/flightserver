@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: '*',
+    origin: 'https://travelai-server.onrender.com'
 }));
 
 
@@ -126,6 +126,7 @@ app.post("/v1/get-flight-prices", async (req, res) => {
     }
 });
 const PORT = 8001;
-app.listen(PORT, () => {
+const HOST = '0.0.0.0';
+app.listen(PORT, HOST, () => {
     console.log(`Alice's Flight Agent is running on port ${PORT}`);
 });
