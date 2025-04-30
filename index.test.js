@@ -64,20 +64,9 @@ const getAccessToken = async () => {
         throw error;
     }
 };
-
 app.get('/api/v1/health', (req, res) => {
-    res.status(200).json({ status: 'OK', server: 'Alice', uptime: process.uptime() });
+    res.status(200).json({ status: 'OK', uptime: process.uptime() });
   });
-
-app.get("/test-token", async (req, res) => {
-    try {
-        const token = await getAccessToken();
-        res.status(200).json({ token: "set", expires: tokenExpiration });
-    } catch (error) {
-        console.error("Test token error:", error.message, error.response?.data);
-        res.status(500).json({ error: "Failed to get token", details: error.message });
-    }
-});
 
 app.post("/v1/get-flight-prices", async (req, res) => {
     console.log("Request received for /v1/get-flight-prices:", JSON.stringify(req.body, null, 2));
