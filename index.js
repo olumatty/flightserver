@@ -6,17 +6,7 @@ const cors = require("cors");
 dotenv.config();
 const app = express();
 app.use(express.json());
-app.use(cors({
-    origin: (origin, callback) => {
-        console.log(`CORS check for origin: ${origin}`);
-        if (!origin || origin.startsWith('https://travelai-server.onrender.com')) {
-            callback(null, true);
-        } else {
-            console.error(`CORS rejected for origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    }
-}));
+app.use(cors());;
 
 let accessToken = null;
 let tokenExpiration = 0;
@@ -48,7 +38,7 @@ const getAccessToken = async () => {
         const response = await axios.post(
             "https://test.api.amadeus.com/v1/security/oauth2/token",
             params,
-            { timeout: 10000 }
+            { timeout: 30000 }
         );
         accessToken = response.data.access_token;
         tokenExpiration = Math.floor(Date.now() / 1000) + response.data.expires_in - 60;
@@ -65,10 +55,9 @@ const getAccessToken = async () => {
     }
 };
 
-app.get("/health", (req, res) => {
-    console.log("Health check requested");
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-});
+app.get('/api/v1/health', (req, res) => {
+    res.status(200).json({ status: 'OK', server: 'Alice', uptime: process.uptime() });
+  });
 
 app.post("/v1/get-flight-prices", async (req, res) => {
     console.log("Request received for /v1/get-flight-prices:", JSON.stringify(req.body, null, 2));
